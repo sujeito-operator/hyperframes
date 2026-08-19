@@ -172,6 +172,12 @@ export function buildPadTrimAudioPlan(
           "-i",
           audioPath,
           "-af",
+          // Both branches carry an `asetpts` and they are not the same tool.
+          // The pad branch rebuilds timestamps from the sample count
+          // (`N/SR/TB`) *before* a trim, because an indefinite `apad` is what
+          // the trim would otherwise be reading. This one rebases an existing
+          // timeline to zero *after* a trim, which is what `PTS-STARTPTS`
+          // does and what `N/SR/TB` would not do.
           `atrim=duration=${targetSec},asetpts=PTS-STARTPTS`,
           // `atrim` limits decoded samples but does not cap muxer timestamps
           // introduced by encoder delay/flush.  The output duration contract
