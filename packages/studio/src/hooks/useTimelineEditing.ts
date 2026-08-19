@@ -18,6 +18,7 @@ import {
   extendRootDurationIfNeeded,
   buildTimelineMoveTimingPatch,
   buildTimelineResizeTimingPatch,
+  postRemoveElement,
 } from "./timelineEditingHelpers";
 import {
   captureDurationRollback,
@@ -28,6 +29,10 @@ import {
 import type { PersistTimelineEditInput } from "./timelineEditingHelpers";
 import type { TimelineStackingReorderIntent } from "../player/components/timelineEditing";
 import {
+  blockedTimelineEditMessage,
+  type BlockedTimelineEditIntent,
+} from "../player/components/timelineBlockedEdits";
+import {
   useTimelineElementVisibilityEditing,
   useTimelineTrackVisibilityEditing,
 } from "./timelineTrackVisibility";
@@ -36,7 +41,6 @@ import { serializeZLaneGesture } from "../components/nle/zLaneGesture";
 import { cutoverCommittedOrThrow, sdkTimingPersist } from "../utils/sdkCutover";
 import type { UseTimelineEditingOptions } from "./useTimelineEditingTypes";
 import { getStudioSaveErrorMessage } from "../utils/studioSaveDiagnostics";
-import { studioWriteHeaders } from "../utils/studioFileVersion";
 
 type TimelineMoveUpdates = Pick<TimelineElement, "start" | "track"> & {
   stackingReorder?: TimelineStackingReorderIntent | null;
@@ -409,14 +413,7 @@ export function useTimelineEditing({
           throw new Error(`Timeline element ${element.id} is missing a patchable target`);
         }
 
-        const removeResponse = await fetch(
-          `/api/projects/${pid}/file-mutations/remove-element/${encodeURIComponent(targetPath)}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json", ...studioWriteHeaders() },
-            body: JSON.stringify({ target: patchTarget }),
-          },
-        );
+        const removeResponse = await postRemoveElement(pid, targetPath, patchTarget);
         if (!removeResponse.ok) {
           throw new Error(`Failed to delete ${element.id} from ${targetPath}`);
         }
@@ -505,11 +502,11 @@ export function useTimelineEditing({
     });
 
   const handleBlockedTimelineEdit = useCallback(
-    (_element: TimelineElement) => {
+    (_element: TimelineElement, intent: BlockedTimelineEditIntent) => {
       const now = Date.now();
       if (now - lastBlockedTimelineToastAtRef.current < 1500) return;
       lastBlockedTimelineToastAtRef.current = now;
-      showToast("This clip can't be moved or resized from the timeline yet.", "info");
+      showToast(blockedTimelineEditMessage(intent), "info");
     },
     [showToast],
   );

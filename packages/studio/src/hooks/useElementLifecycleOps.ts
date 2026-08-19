@@ -21,7 +21,7 @@ import {
 } from "../components/editor/useLayerRevealOverride";
 import type { CommitDomEditPatchBatches, DomEditPatchBatch } from "./domEditCommitTypes";
 import { cutoverCommittedOrThrow, type CutoverResult } from "../utils/sdkCutover";
-import { studioWriteHeaders } from "../utils/studioFileVersion";
+import { postRemoveElement } from "./timelineEditingHelpers";
 
 interface UseElementLifecycleOpsParams extends DomEditCommitBaseParams {
   /** Route delete through SDK when session resolves the hf-id. */
@@ -112,14 +112,7 @@ export function useElementLifecycleOps({
         }
 
         domEditSaveTimestampRef.current = Date.now();
-        const removeResponse = await fetch(
-          `/api/projects/${pid}/file-mutations/remove-element/${encodeURIComponent(targetPath)}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json", ...studioWriteHeaders() },
-            body: JSON.stringify({ target: patchTarget }),
-          },
-        );
+        const removeResponse = await postRemoveElement(pid, targetPath, patchTarget);
         if (!removeResponse.ok) {
           throw await createStudioSaveHttpError(
             removeResponse,

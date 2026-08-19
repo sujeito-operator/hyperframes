@@ -105,6 +105,7 @@ export function extendRootDurationIfNeeded(newEnd: number): boolean {
   return true;
 }
 // ── Types ──
+import { studioWriteHeaders } from "../utils/studioFileVersion";
 export type { RecordEditInput } from "../utils/studioFileHistory";
 export function buildPatchTarget(element: {
   domId?: string;
@@ -129,6 +130,39 @@ export function buildPatchTarget(element: {
   return null;
 }
 export type PatchTarget = NonNullable<ReturnType<typeof buildPatchTarget>>;
+
+/**
+ * How the server's remove-element route locates an element. Looser than
+ * {@link PatchTarget} on purpose: the two delete paths build their locator
+ * differently (one from a timeline element, one from a DOM-edit selection) and
+ * the route accepts any of the three keys.
+ */
+export interface RemoveElementTarget {
+  id?: string | null;
+  hfId?: string;
+  selector?: string;
+  selectorIndex?: number;
+}
+
+/**
+ * POST the server's remove-element mutation. One owner for the route, the
+ * headers and the body shape; callers keep their own error handling, which is
+ * the only part that differs between the timeline and lifecycle delete paths.
+ */
+export function postRemoveElement(
+  projectId: string,
+  targetPath: string,
+  target: RemoveElementTarget,
+): Promise<Response> {
+  return fetch(
+    `/api/projects/${projectId}/file-mutations/remove-element/${encodeURIComponent(targetPath)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...studioWriteHeaders() },
+      body: JSON.stringify({ target }),
+    },
+  );
+}
 // The runtime re-reads data-start/data-duration from the DOM on each sync tick
 // (packages/core/src/runtime/init.ts:1324-1368), so attribute mutations here are
 // picked up automatically on the next frame without a rebind call.
